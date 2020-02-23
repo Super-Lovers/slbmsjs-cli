@@ -1,0 +1,32 @@
+{
+  "name": "slbms.js",
+  "version": "1.0.6",
+  "description": "A bookmarks display viewer using modern browser bookmarks html files",
+  "main": "app.js",
+  "bin": {
+    "slbms": "app.js"
+  },
+  "keywords": [
+    "bookmarks",
+    "viewer",
+    "manager",
+    "cli"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nikolay Vaskov Ivanov",
+  "license": "ISC",
+  "dependencies": {
+    "bookmark-parser": "^0.1.6",
+    "chalk": "^3.0.0",
+    "cli-spinner": "^0.2.10",
+    "fuse.js": "^3.4.6",
+    "get-installed-path": "^4.0.8",
+    "inquirer": "^7.0.4",
+    "lz4": "^0.6.3",
+    "node-expat": "^2.3.18",
+    "openurl2": "^1.0.1",
+    "xxhash": "^0.3.0"
+  }
+}
