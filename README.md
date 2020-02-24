@@ -9,7 +9,7 @@
 ### Windows
 
 ```
-$ npm i slbms.js -g
+$ npm i slbms.js
 ```
 ## 🎈 Usage
 
