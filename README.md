@@ -6,10 +6,8 @@
 
 ## 🔧 Install
 
-### Windows
-
 ```
-$ npm i slbms.js
+$ npm i [-g]
 ```
 ## 🎈 Usage
 
