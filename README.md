@@ -5,7 +5,12 @@
 <p style="text-align:center;">SLBMS is a simple nodejs bookmarks viewer that lets you explore a backup of your browser's bookmarks json file in various ways in a friendly manner.</p>
 
 ## 🔧 Install
-
+```
+$ git clone https://github.com/Super-Lovers/slbmsjs-cli.git
+```
+```
+$ cd slbmsjs-cli
+```
 ```
 $ npm i [-g]
 ```
