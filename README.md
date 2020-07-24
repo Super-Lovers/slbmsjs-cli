@@ -16,7 +16,7 @@ $ npm i [-g]
 ```
 ## 🎈 Usage
 
-Before you can start using the application, you have to go to its root directory (``npm list -g | head -1`` to get path to npm packages and then enter this package's folder) and create a "bookmarks" folder where you have to put your respective browser's html JSON file of the bookmarks that you export. So far I have tested that it works with Chrome and Firefox (you can also use more than one bookmarks backup file). Your folder structure should look like this:
+Before you can start using the application, you have to go to its root directory (``npm list -g | head -1`` to get path to npm packages, then enter node_modules and then enter this package's folder) and create a "bookmarks" folder where you have to put your respective browser's html JSON file of the bookmarks that you export. So far I have tested that it works with Chrome and Firefox (you can also use more than one bookmarks backup file). Your folder structure should look like this:
 
 <img style="float:left;" src="https://i.imgur.com/9IeASY8.png"/>
 
