@@ -25,7 +25,7 @@ console.log('/ __| | |_ \\| \'_  ` _\\/ __|');
 console.log('\\__ | | |_) | | | | | \\__ \\');
 console.log('|___|_|_.__/|_| |_| |_|___/');
 console.log(chalk `{green The simple bookmarks viewer}`);
-console.log(chalk `{bgBlue version (1.1)}`);
+console.log(chalk `{bgBlue version (1.2.1)}`);
 console.log();
 
 getInstalledPath('slbms.js').then((path) => {
