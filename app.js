@@ -1,415 +1,653 @@
 #!/usr/bin/env node
+/* eslint-disable no-empty-function */
+/* eslint-disable no-shadow */
 
 const bookmarksParser = require('bookmark-parser');
 const fs = require('fs');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const openurl2 = require('openurl2');
+const stripAnsi = require('strip-ansi');
 const Spinner = require('cli-spinner').Spinner;
 const Fuse = require('fuse.js');
 const {
-    getInstalledPath
+	getInstalledPath
 } = require('get-installed-path');
 
 let librariesLeftToImport = 0;
-let folders = [];
+const folders = [];
 let allBookmarks = [];
+let state;
+let lastBookmarkSelected;
 
 console.log('     _ _                   ');
 console.log(' ___| | |__  _ __ ___  ___ ');
-console.log(`/ __| | |_ \\| \'_  \` _\\/ __|`);
+console.log('/ __| | |_ \\| \'_  ` _\\/ __|');
 console.log('\\__ | | |_) | | | | | \\__ \\');
 console.log('|___|_|_.__/|_| |_| |_|___/');
-console.log(chalk `{blue The simple bookmarks viewer}`);
+console.log(chalk `{green The simple bookmarks viewer}`);
+console.log(chalk `{bgBlue version (1.1)}`);
 console.log();
 
 getInstalledPath('slbms.js').then((path) => {
-    fs.exists(path + '/imported-data.json', result => {
-        if (result == false) {
-            fs.exists(path + '/bookmarks', doesFolderExist => {
-                if (doesFolderExist == false) {
-                    throw new Error(chalk `{red Please create a "bookmarks" folder in the root of the package folder (${__dirname}) and add at least one html json bookmarks backup file in it.}`);
-                }
-            });
+	fs.exists(path + '/imported-data.json', result => {
+		if (result == false) {
+			fs.exists(path + '/bookmarks', doesFolderExist => {
+				if (doesFolderExist == false) {
+					throw new Error(chalk `{red Please create a "bookmarks" folder in the root of the package folder (${__dirname}) and add at least one html json bookmarks backup file in it.}`);
+				}
+			});
 
-            fs.readdir(path + '/bookmarks', (err, files) => {
-                if (files == null || files == undefined || files.length == 0) {
-                    throw new Error(chalk `{red Please add at least one html json bookmarks backup file in the bookmarks folder of the root folder of the package (${__dirname}). Create a bookmarks folder if it does not exist.}`);
-                }
+			fs.readdir(path + '/bookmarks', (err, files) => {
+				if (files == null || files == undefined || files.length == 0) {
+					throw new Error(chalk `{red Please add at least one html json bookmarks backup file in the bookmarks folder of the root folder of the package (${__dirname}). Create a bookmarks folder if it does not exist.}`);
+				}
 
-                librariesLeftToImport = files.length;
-                files.forEach(file => {
-                    importBookmarks(file);
-                });
-            });
-        } else if (result == true) {
-            let data = fs.readFileSync(path + '/imported-data.json', 'utf8');
-            allBookmarks = JSON.parse(data);
+				librariesLeftToImport = files.length;
+				files.forEach(file => {
+					importBookmarks(file);
+				});
 
-            prompt();
-        }
-    });
+				const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
+				if (bookmarksWithTagsData.length > 0) {
+					const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+
+					for (let i = 0; i < bookmarksWithTags.length; i++) {
+						const bookmarkWithTags = bookmarksWithTags[i];
+
+						for (let j = 0; j < allBookmarks.length; j++) {
+							const bookmark = allBookmarks[j];
+
+							if (bookmarkWithTags.name == bookmark.name) {
+								bookmark.tags = bookmarkWithTags.tags;
+							}
+						}
+					}
+				}
+			});
+		} else if (result == true) {
+			const bookmarks = fs.readFileSync(path + '/imported-data.json', 'utf8');
+			allBookmarks = JSON.parse(bookmarks);
+
+			const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
+			if (bookmarksWithTagsData.length > 0) {
+				const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+
+				for (let i = 0; i < bookmarksWithTags.length; i++) {
+					const bookmarkWithTags = bookmarksWithTags[i];
+
+					for (let j = 0; j < allBookmarks.length; j++) {
+						const bookmark = allBookmarks[j];
+
+						if (bookmarkWithTags.name == bookmark.name) {
+							bookmark.tags = bookmarkWithTags.tags;
+						}
+					}
+				}
+			}
+
+			prompt();
+		}
+	});
 });
+
+// function loadTagsBackup(path) {
+// 	fs.exists(path + '/tags-backup.json', result => {
+// 		if (result == false) {
+// 			fs.writeFileSync(path + '/tags-backup.json', '', () => {});
+// 		}
+// 		else {
+// 			const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
+// 			if (bookmarksWithTagsData.length > 0) {
+// 				const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+
+// 				for (let i = 0; i < bookmarksWithTags.length; i++) {
+// 					const bookmarkWithTags = bookmarksWithTags[i];
+
+// 					for (let j = 0; j < allBookmarks.length; j++) {
+// 						const bookmark = allBookmarks[j];
+
+// 						if (bookmarkWithTags.name == bookmark.name) {
+// 							bookmark.tags = bookmarkWithTags.tags;
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	});
+// }
 
 // Query options
 // ******************************
-let searchOptions = {
-    shouldSort: true,
-    includeMatches: true,
-    findAllMatches: true,
-    threshold: 0.5,
-    keys: ['name', 'fromFolder', 'creationDate', 'url']
-}
-
-let queryMethodOptions = {
-    type: 'list',
-    name: 'method',
-    message: 'Select query method',
-    choices: [
-        'Group',
-        'Sort',
-        'Keywords',
-        'Settings'
-    ]
+const searchOptions = {
+	shouldSort: true,
+	includeMatches: true,
+	findAllMatches: true,
+	threshold: 0.5,
+	keys: ['name', 'fromFolder', 'creationDate', 'url']
 };
 
-let groupByOptions = {
-    type: 'list',
-    name: 'parameter',
-    message: 'Parameter',
-    choices: ['Back', 'Address']
+const queryMethodOptions = {
+	type: 'list',
+	name: 'method',
+	message: 'Select query method',
+	choices: [
+		'Group',
+		'Sort',
+		'Keywords',
+		'Tags',
+		'Settings'
+	]
 };
 
-let sortByOptions = {
-    type: 'list',
-    name: 'parameter',
-    message: 'Parameter',
-    choices: ['Back', 'Oldest', 'Newest']
+const groupByOptions = {
+	type: 'list',
+	name: 'parameter',
+	message: 'Parameter',
+	choices: ['Back', 'Address']
 };
 
-let keywordsOptions = {
-    type: 'input',
-    name: 'keywords',
-    message: 'Please enter the keywords to search by: '
+const sortByOptions = {
+	type: 'list',
+	name: 'parameter',
+	message: 'Parameter',
+	choices: ['Back', 'Oldest', 'Newest']
 };
 
-let settingsOptions = {
-    type: 'list',
-    name: 'parameter',
-    message: 'Option',
-    choices: ['Back', 'Re-import bookmarks']
+const keywordsOptions = {
+	type: 'input',
+	name: 'keywords',
+	message: 'Please enter the keywords to search by: '
+};
+
+const browseTagsOptions = {
+	type: 'checkbox',
+	name: 'parameter',
+	message: 'Please select the tags you want to view bookmarks of: ',
+	choices: []
+};
+
+const assignTagsOptions = {
+	type: 'input',
+	name: 'keywords',
+	message: 'Please write down the tags you want to assign to the bookmark. (example:) game html javascript csharp leisure: '
+};
+
+const settingsOptions = {
+	type: 'list',
+	name: 'parameter',
+	message: 'Option',
+	choices: ['Back', 'Re-import bookmarks']
+};
+
+const selectedTagsBookmarksOptions = {
+	type: 'list',
+	name: 'parameter',
+	message: 'Option'
+};
+
+const useTagsOptions = {
+	type: 'list',
+	name: 'parameter',
+	message: 'Parameter',
+	choices: ['Back', 'Browse Tags', 'Assign Tags']
 };
 // ******************************
 
 function queryAnswer(answer) {
-    if (answer.method == 'Group') {
-        inquirer.prompt([groupByOptions])
-            .then(answer => groupQueryBy(answer));
-    } else if (answer.method == 'Sort') {
-        inquirer.prompt([sortByOptions])
-            .then(answer => queryBySorting(answer));
-    } else if (answer.method == 'Keywords') {
-        inquirer.prompt([keywordsOptions])
-            .then(answer => queryByKeywords(answer));
-    } else if (answer.method == 'Settings') {
-        inquirer.prompt([settingsOptions])
-            .then(answer => openOptionsQuery(answer));
-    }
+	// **** STATES OF BROWSING BOOKMARKS ****
+	//
+	// -> Bookmarks Browsing
+	// -> Tags Operation
+	//
+	// **************************************
+
+	if (answer.method == 'Group') {
+		inquirer.prompt([groupByOptions])
+			.then(answer => groupQueryBy(answer));
+	} else if (answer.method == 'Sort') {
+		inquirer.prompt([sortByOptions])
+			.then(answer => queryBySorting(answer));
+	} else if (answer.method == 'Keywords') {
+		inquirer.prompt([keywordsOptions])
+			.then(answer => queryByKeywords(answer));
+	} else if (answer.method == 'Tags') {
+		inquirer.prompt([useTagsOptions])
+			.then(answer => selectTagsOperation(answer));
+		state = 'Tags Operation';
+	} else if (answer.method == 'Settings') {
+		inquirer.prompt([settingsOptions])
+			.then(answer => openOptionsQuery(answer));
+	}
+}
+
+function selectTagsOperation(answer) {
+	if (answer.parameter == 'Browse Tags') {
+		const allTags = [];
+
+		for (let i = 0; i < allBookmarks.length; i++) {
+			const bookmark = allBookmarks[i];
+
+			for (let j = 0; j < bookmark.tags.length; j++) {
+				const tag = bookmark.tags[j];
+
+				if (!allTags.includes(tag)) {
+					allTags.push(tag);
+				}
+			}
+		}
+
+		browseTagsOptions.choices = allTags;
+
+		if (allTags.length == 0) {
+			console.log(chalk `{red ✗ You have no tags to browse. Assign tags in order to use this operation.}`);
+			prompt();
+		} else {
+			inquirer.prompt([browseTagsOptions])
+				.then(answer => displayBookmarksForTags(answer));
+		}
+	} else if (answer.parameter == 'Assign Tags') {
+		inquirer.prompt([keywordsOptions])
+			.then(answer => queryByKeywords(answer));
+	} else if (answer.parameter == 'Back') {
+		prompt();
+	}
+}
+
+function displayBookmarksForTags(answer) {
+	const bookmarks = [];
+	const tagsSelected = answer.parameter;
+
+	for (let i = 0; i < allBookmarks.length; i++) {
+		const bookmark = allBookmarks[i];
+
+		for (let j = 0; j < bookmark.tags.length; j++) {
+			const tag = bookmark.tags[j];
+
+			if (tagsSelected.includes(tag)) {
+				bookmarks.push(bookmark.name + ' => ' + bookmark.url);
+			}
+		}
+	}
+
+	selectedTagsBookmarksOptions.choices = bookmarks;
+
+	inquirer.prompt([selectedTagsBookmarksOptions])
+		.then(answer => {
+			const bookmarkLink = answer.parameter.split(' => ')[1];
+			openBookmarkLink(bookmarkLink);
+		});
 }
 
 function openOptionsQuery(answer) {
-    getInstalledPath('slbms.js').then((path) => {
-        if (answer.parameter == 'Re-import bookmarks') {
-            fs.readdir(path + '/bookmarks', (err, files) => {
-                librariesLeftToImport = files.length;
-                files.forEach(file => {
-                    importBookmarks(file);
-                });
-            });
-        } else if (answer.parameter == 'Back') {
-            prompt();
-        }
-    });
+	getInstalledPath('slbms.js').then((path) => {
+		if (answer.parameter == 'Re-import bookmarks') {
+			fs.readdir(path + '/bookmarks', (err, files) => {
+				librariesLeftToImport = files.length;
+				files.forEach(file => {
+					importBookmarks(file);
+				});
+			});
+		// } else if (answer.parameter == 'Back-up tags') {
+		// 	backupTags();
+		// 	prompt();
+		} else if (answer.parameter == 'Back') {
+			prompt();
+		}
+	});
 }
 
 function queryBySorting(answer) {
-    if (answer.parameter == 'Newest') {
-        sortBookmarksIn('Newest');
-    } else if (answer.parameter == 'Oldest') {
-        sortBookmarksIn('Oldest');
-    } else if (answer.parameter == 'Back') {
-        prompt();
-    }
+	if (answer.parameter == 'Newest') {
+		sortBookmarksIn('Newest');
+	} else if (answer.parameter == 'Oldest') {
+		sortBookmarksIn('Oldest');
+	} else if (answer.parameter == 'Back') {
+		prompt();
+	}
 }
 
 function sortBookmarksIn(order) {
-    let sortedBookmarks = JSON.parse(JSON.stringify(allBookmarks));
+	const sortedBookmarks = JSON.parse(JSON.stringify(allBookmarks));
 
-    sortedBookmarks.forEach(bookmark => {
-        let date;
-        if (bookmark.creationDate !== null && bookmark.creationDate !== undefined) {
-            date = bookmark.creationDate;
-        } else {
-            date = 'No Date';
-        }
+	sortedBookmarks.forEach(bookmark => {
+		let date;
+		if (bookmark.creationDate !== null && bookmark.creationDate !== undefined) {
+			date = bookmark.creationDate;
+		} else {
+			date = 'No Date';
+		}
 
-        let name = bookmark.name;
-        let url = bookmark.url;
+		const name = bookmark.name;
+		const url = bookmark.url;
 
-        bookmark.name = chalk `{underline ${date} => ${name} =>{bold  ${url}}}`;
-    });
+		bookmark.name = chalk `{underline ${date} => ${name} =>{bold  ${url}}}`;
+	});
 
-    if (order == 'Newest') {
-        sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? -1 : 1);
-    } else if (order == 'Oldest') {
-        sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? 1 : -1);
-    }
+	if (order == 'Newest') {
+		sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? -1 : 1);
+	} else if (order == 'Oldest') {
+		sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? 1 : -1);
+	}
 
-    inquirer
-        .prompt([{
-            type: 'list',
-            name: 'result',
-            message: chalk `{green ✓ Sorted bookmarks in order of ${
-                order == 'Newest' ? 'newest' : 'oldest'}}`,
-            choices: sortedBookmarks
-        }])
-        .then(bookmarkPicked => pickBookmark(bookmarkPicked));
+	inquirer
+		.prompt([{
+			type: 'list',
+			name: 'result',
+			message: chalk `{green ✓ Sorted bookmarks in order of ${
+				order == 'Newest' ? 'newest' : 'oldest'}}`,
+			choices: sortedBookmarks
+		}])
+		.then(bookmarkPicked => pickBookmark(bookmarkPicked));
 }
 
 function queryByKeywords(answer) {
-    if (answer.keywords == '') {
-        console.log(chalk `{red ✗ Please give at least one keyword to make a search}`);
-        prompt();
-        return;
-    }
+	if (answer.keywords == '') {
+		console.log(chalk `{red ✗ Please give at least one keyword to make a search}`);
+		prompt();
+		return;
+	}
 
-    let spinner = new Spinner(chalk `%s {yellow Searching for matches}`);
-    spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
-    spinner.start();
+	const spinner = new Spinner(chalk `%s {yellow Searching for matches}`);
+	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
+	spinner.start();
 
-    const fuseQuery = new Fuse(allBookmarks, searchOptions);
-    let matches = [];
-    let result = fuseQuery.search(answer.keywords).forEach(item => {
-        item.item.name = chalk `{underline ${item.item.name.substring(0, 100)}} => ${item.item.url}`;
-        matches.push(item.item);
-    });
+	const fuseQuery = new Fuse(allBookmarks, searchOptions);
+	const matches = [];
+	fuseQuery.search(answer.keywords).forEach(item => {
+		item.item.name = chalk `{underline ${item.item.name.substring(0, 100)}} => ${item.item.url}`;
+		matches.push(item.item);
+	});
 
-    spinner.stop();
+	spinner.stop();
 
-    console.log();
-    if (matches.length == 0) {
-        console.log('No matches were found');
-        prompt();
-        return;
-    }
+	console.log();
+	if (matches.length == 0) {
+		console.log('No matches were found');
+		prompt();
+		return;
+	}
 
-    inquirer
-        .prompt([{
-            type: 'list',
-            name: 'result',
-            message: `Results (${matches.length}):`,
-            choices: matches
-        }])
-        .then(bookmarkPicked => pickBookmark(bookmarkPicked));
+	inquirer
+		.prompt([{
+			type: 'checkbox',
+			name: 'result',
+			message: `Results (${matches.length}):`,
+			choices: matches
+		}])
+		.then(bookmarkPicked => {
+			if (state == 'Tags Operation') {
+				for (let i = 0; i < allBookmarks.length; i++) {
+					const bookmark = allBookmarks[i];
+
+					if (bookmark.url == bookmarkPicked.result.split(' => ')[1]) {
+						lastBookmarkSelected = bookmark;
+						break;
+					}
+				}
+
+				tagBookmark();
+			} else if (state == 'Bookmarks Browsing') {
+				pickBookmark(bookmarkPicked);
+			}
+		});
 }
 
-function removeInquirerListeners() {
-    // inquirer.remove
+function backupTags() {
+	const bookmarksToBackup = [];
+
+	for (let i = 0; i < allBookmarks.length; i++) {
+		const bookmark = allBookmarks[i];
+
+		if (bookmark.tags.length > 0) {
+			bookmarksToBackup.push(bookmark);
+
+			getInstalledPath('slbms.js').then((path) => {
+				fs.writeFile(path + '/tags-backup.json', stripAnsi(JSON.stringify(bookmarksToBackup)), () => {});
+			});
+		}
+	}
+
+	console.log(chalk `{green ✓ Tags backed-up successfully.}`);
+}
+
+function tagBookmark() {
+	inquirer.prompt([assignTagsOptions])
+		.then(answer => {
+			const tags = answer.keywords.split(' ');
+			lastBookmarkSelected.name = stripAnsi(lastBookmarkSelected.name.split(' => ')[0]);
+			lastBookmarkSelected.tags = tags;
+
+			getInstalledPath('slbms.js').then((path) => {
+				fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {});
+			});
+
+			console.log(chalk `{green ✓ Tags assigned.}`);
+			backupTags();
+
+			prompt();
+		});
 }
 
 function pickBookmark(bookmarkPicked) {
-    let regexForUrls = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w\.?=%&=\-@\/$,]*/);
-    let urlResult = regexForUrls.exec(bookmarkPicked.result);
+	const regexForUrls = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
+	const urlResult = regexForUrls.exec(bookmarkPicked.result);
 
-    openBookmarkLink(urlResult[0]);
+	openBookmarkLink(urlResult[0]);
 }
 
 function groupQueryBy(answer) {
-    if (answer.parameter == 'Address') {
-        groupByAddress();
-    } else if (answer.parameter == 'Back') {
-        prompt();
-    }
+	if (answer.parameter == 'Address') {
+		groupByAddress();
+	} else if (answer.parameter == 'Back') {
+		prompt();
+	}
 }
 
 function prompt() {
-    inquirer
-        .prompt([queryMethodOptions])
-        .then(answer => queryAnswer(answer));
+	state = 'Bookmarks Browsing';
+
+	inquirer
+		.prompt([queryMethodOptions])
+		.then(answer => queryAnswer(answer));
 }
 
 function groupByAddress() {
-    let groups = [];
-    let allDomains = [];
+	const groups = [];
+	const allDomains = [];
 
-    for (let i = 0; i < allBookmarks.length; i++) {
-        let regexForDomains = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w\.?=%&=\-@\/$,]*/);
-        let result = regexForDomains.exec(allBookmarks[i].url);
-        if (result !== null && result !== undefined) {
-            let domainString = result[2];
+	for (let i = 0; i < allBookmarks.length; i++) {
+		const regexForDomains = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
+		const result = regexForDomains.exec(allBookmarks[i].url);
+		if (result !== null && result !== undefined) {
+			const domainString = result[2];
 
-            let domainObj = {
-                domain: domainString,
-                count: 1
-            };
+			const domainObj = {
+				title: allBookmarks[i].name,
+				domain: domainString,
+				count: 1
+			};
 
-            let isDomainInGroups = false;
-            for (let j = 0; j < groups.length; j++) {
-                if (groups[j].domain == domainObj.domain) {
-                    groups[j].count++;
-                    isDomainInGroups = true;
-                    break;
-                }
-            }
+			let isDomainInGroups = false;
+			for (let j = 0; j < groups.length; j++) {
+				if (groups[j].domain == domainObj.domain) {
+					groups[j].count++;
+					isDomainInGroups = true;
+					break;
+				}
+			}
 
-            if (isDomainInGroups == false) {
-                groups.push(domainObj);
-            }
-        }
-    }
+			if (isDomainInGroups == false) {
+				groups.push(domainObj);
+			}
+		}
+	}
 
-    groups.sort((a, b) => a.count > b.count ? -1 : 1);
+	groups.sort((a, b) => a.count > b.count ? -1 : 1);
 
-    for (let i = 0; i < groups.length; i++) {
-        // let message = chalk `{underline ${groups[i].domain}} => ${
-        //     groups[i].count} ${groups[i].count > 1 ? 'occurrences' : 'occurrence'}`;
-        let message = `${groups[i].domain} => ${groups[i].count} ${(groups[i].count > 1 ? 'occurrences' : 'occurrence')}`;
+	for (let i = 0; i < groups.length; i++) {
+		const message = `${groups[i].domain} => ${groups[i].count} ${(groups[i].count > 1 ? 'occurrences' : 'occurrence')}`;
 
-        allDomains.push(message);
-    }
+		allDomains.push(message);
+	}
 
-    inquirer
-        .prompt([{
-            type: 'list',
-            name: 'result',
-            message: `Results (${groups.length}):`,
-            choices: allDomains
-        }])
-        .then(domain => displayDomainGroup(domain));
+	inquirer
+		.prompt([{
+			type: 'list',
+			name: 'result',
+			message: `Results (${groups.length}):`,
+			choices: allDomains
+		}])
+		.then(domain => displayDomainGroup(domain));
 }
 
 function displayDomainGroup(domain) {
-    let bookmarksFromDomain = [];
+	const bookmarksFromDomain = [];
 
-    let regexForBookmarks = new RegExp(/(?<Domain>[\w@][\w.:@]+)\/?[\w\.?=%&=\-@\/$,]*/);
-    let result = regexForBookmarks.exec(domain.result);
-    let domainString = result[0];
+	const regexForBookmarks = new RegExp(/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
+	const result = regexForBookmarks.exec(domain.result);
+	const domainString = result[0];
 
-    for (let i = 0; i < allBookmarks.length; i++) {
-        let regexForBookmarks = new RegExp(domainString);
-        let result = regexForBookmarks.exec(allBookmarks[i].url);
+	for (let i = 0; i < allBookmarks.length; i++) {
+		const regexForDomainBookmark = new RegExp(domainString);
+		const bookmark = regexForDomainBookmark.exec(allBookmarks[i].url);
 
-        if (result !== null && result !== undefined) {
-            bookmarksFromDomain.push(result);
-        }
-    }
+		if (bookmark !== null && bookmark !== undefined) {
+			bookmarksFromDomain.push(allBookmarks[i].name + ' => ' + allBookmarks[i].url);
+		}
+	}
 
-    let listOfBookmarks = [];
-    bookmarksFromDomain.forEach(element => {
-        listOfBookmarks.push(element.input);
-    });
+	const listOfBookmarks = [];
+	bookmarksFromDomain.forEach(element => {
+		listOfBookmarks.push(element);
+	});
 
-    inquirer
-        .prompt([{
-            type: 'list',
-            name: 'result',
-            message: `Domain group matches (${listOfBookmarks.length}):`,
-            choices: listOfBookmarks
-        }])
-        .then(bookmark => openBookmarkLink(bookmark.result));
+	inquirer
+		.prompt([{
+			type: 'list',
+			name: 'result',
+			message: `Domain group matches (${listOfBookmarks.length}):`,
+			choices: listOfBookmarks
+		}])
+		.then(bookmark => {
+			const bookmarkLink = bookmark.result.split(' => ')[1];
+			openBookmarkLink(bookmarkLink);
+		});
 }
 
 function openBookmarkLink(bookmarkLink) {
-    let spinner = new Spinner(chalk `%s {yellow Opening ${bookmarkLink}}`);
-    spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
-    spinner.start();
+	const spinner = new Spinner(chalk `%s {yellow Opening ${bookmarkLink}}`);
+	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
+	spinner.start();
 
-    openurl2.open(bookmarkLink, () => {
-        console.log(chalk `\n{green ✓ Finished opening ${bookmarkLink}}`);
-        spinner.stop();
+	openurl2.open(bookmarkLink, () => {
+		console.log(chalk `\n{green ✓ Finished opening ${bookmarkLink}}`);
+		spinner.stop();
 
-        prompt();
-    });
-}
-
-function answer(input) {
-    if (input == 'Y' ||
-        input == 'y' ||
-        input == 'Yes' ||
-        input == 'yes') {
-        return true;
-    } else if (input == 'N' ||
-        input == 'n' ||
-        input == 'No' ||
-        input == 'no') {
-        return false;
-    }
-
-    return true;
+		prompt();
+	});
 }
 
 function importBookmarks(htmlFile) {
-    allBookmarks = [];
-    let spinner = new Spinner(chalk `Importing {blue ${htmlFile}} bookmarks file...`);
-    spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
-    spinner.start();
+	allBookmarks = [];
+	const spinner = new Spinner(chalk `Importing {blue ${htmlFile}} bookmarks file...`);
+	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
+	spinner.start();
 
-    getInstalledPath('slbms.js').then((path) => {
-        bookmarksParser
-            .readFromHTMLFile(path + `/bookmarks/${htmlFile}`)
-            .then(obj => {
-                obj.Bookmarks.children.forEach(bookmarksFolder => {
-                    getBookmarks(bookmarksFolder);
-                });
-    
-                spinner.stop();
-                console.log(chalk `Completed Importing {blue ${htmlFile}} bookmarks file`);
-                librariesLeftToImport--;
-    
-                if (librariesLeftToImport == 0) {
-                    fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {
-                        prompt();
-                    });
-                }
-            });
-    });
+	getInstalledPath('slbms.js').then((path) => {
+		bookmarksParser
+			.readFromHTMLFile(path + `/bookmarks/${htmlFile}`)
+			.then(obj => {
+				obj.Bookmarks.children.forEach(bookmarksFolder => {
+					getBookmarks(bookmarksFolder);
+				});
+
+				fs.existsSync(path + '/tags-backup.json', result => {
+					if (result == false) { fs.writeFileSync(path + '/tags-backup.json', '', 'utf8'); }
+					else {
+						const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
+						const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+
+						for (let i = 0; i < bookmarksWithTags.length; i++) {
+							const bookmarkWithTags = bookmarksWithTags[i];
+
+							for (let j = 0; j < allBookmarks.length; j++) {
+								const bookmark = allBookmarks[j];
+
+								if (bookmarkWithTags.name == bookmark.name) {
+									bookmark.tags = bookmarkWithTags.tags;
+								}
+							}
+						}
+					}
+				});
+
+				spinner.stop();
+				console.log(chalk `Completed Importing {blue ${htmlFile}} bookmarks file`);
+				librariesLeftToImport--;
+
+				const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
+				if (bookmarksWithTagsData.length > 0) {
+					const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+
+					for (let i = 0; i < bookmarksWithTags.length; i++) {
+						const bookmarkWithTags = bookmarksWithTags[i];
+
+						for (let j = 0; j < allBookmarks.length; j++) {
+							const bookmark = allBookmarks[j];
+
+							if (bookmarkWithTags.name == bookmark.name) {
+								bookmark.tags = bookmarkWithTags.tags;
+							}
+						}
+					}
+				}
+
+				if (librariesLeftToImport == 0) {
+					fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {
+						prompt();
+					});
+				}
+			});
+	});
 }
 
 function getBookmarks(folder) {
-    if (Array.isArray(folder.children) && folder.children.length > 0) {
-        let bookmarksContainer = {
-            name: folder.name,
-            bookmarks: []
-        };
+	if (Array.isArray(folder.children) && folder.children.length > 0) {
+		const bookmarksContainer = {
+			name: folder.name,
+			bookmarks: []
+		};
 
-        folder.children
-            .forEach(bookmark => {
-                if (bookmark.type == 'folder') {
-                    getBookmarks(bookmark);
-                }
+		folder.children
+			.forEach(bookmark => {
+				if (bookmark.type == 'folder') {
+					getBookmarks(bookmark);
+				}
 
-                if (bookmark.type == 'bookmark') {
-                    var utcSeconds = bookmark.addDate;
-                    var date = new Date(0);
-                    date.setUTCSeconds(utcSeconds);
+				if (bookmark.type == 'bookmark') {
+					const utcSeconds = bookmark.addDate;
+					const date = new Date(0);
+					date.setUTCSeconds(utcSeconds);
 
-                    let newBookmark = {
-                        name: bookmark.name,
-                        creationDate: date.toLocaleString(),
-                        url: bookmark.url,
-                        fromFolder: bookmarksContainer.name
-                    };
+					const newBookmark = {
+						name: bookmark.name,
+						creationDate: date.toLocaleString(),
+						url: bookmark.url,
+						fromFolder: bookmarksContainer.name,
+						tags: []
+					};
 
-                    allBookmarks.push(newBookmark);
-                    bookmarksContainer.bookmarks.push(newBookmark);
-                }
-            });
+					allBookmarks.push(newBookmark);
+					bookmarksContainer.bookmarks.push(newBookmark);
+				}
+			});
 
-        if (bookmarksContainer.bookmarks.length > 0) {
-            folders.push(bookmarksContainer);
+		if (bookmarksContainer.bookmarks.length > 0) {
+			folders.push(bookmarksContainer);
 
-            console.log();
-            console.log(chalk `Imported library {green ${bookmarksContainer.name}} => ${folder.children.length} bookmarks`);
-        }
-    }
+			console.log();
+			console.log(chalk `Imported library {green ${bookmarksContainer.name}} => ${folder.children.length} bookmarks`);
+		}
+	}
 }
