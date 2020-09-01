@@ -244,7 +244,7 @@ function displayBookmarksForTags(answer) {
 		for (let j = 0; j < bookmark.tags.length; j++) {
 			const tag = bookmark.tags[j];
 
-			if (tagsSelected.includes(tag)) {
+			if (tagsSelected.includes(tag) && !bookmarks.includes(bookmark.name + ' => ' + bookmark.url)) {
 				bookmarks.push(bookmark.name + ' => ' + bookmark.url);
 			}
 		}
