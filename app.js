@@ -2,6 +2,7 @@
 /* eslint-disable no-empty-function */
 /* eslint-disable no-shadow */
 
+// Libraries
 const bookmarksParser = require('bookmark-parser');
 const fs = require('fs');
 const chalk = require('chalk');
@@ -14,6 +15,11 @@ const {
 	getInstalledPath
 } = require('get-installed-path');
 
+// Local imports
+const options = require('./options.js');
+
+// ***********************************
+// ***********************************
 let librariesLeftToImport = 0;
 const folders = [];
 let allBookmarks = [];
@@ -97,83 +103,6 @@ getInstalledPath('slbms.js').then((path) => {
 	});
 });
 
-// Query options
-// ******************************
-const searchOptions = {
-	shouldSort: true,
-	includeMatches: true,
-	findAllMatches: true,
-	threshold: 0.5,
-	keys: ['name', 'fromFolder', 'creationDate', 'url']
-};
-
-const queryMethodOptions = {
-	type: 'list',
-	name: 'method',
-	message: 'Select query method',
-	choices: [
-		'Group',
-		'Sort',
-		'Keywords',
-		'Tags',
-		'Settings'
-	]
-};
-
-const groupByOptions = {
-	type: 'list',
-	name: 'parameter',
-	message: 'Parameter',
-	choices: ['Back', 'Address']
-};
-
-const sortByOptions = {
-	type: 'list',
-	name: 'parameter',
-	message: 'Parameter',
-	choices: ['Back', 'Oldest', 'Newest']
-};
-
-const keywordsOptions = {
-	type: 'input',
-	name: 'keywords',
-	message: 'Please enter the keywords to search by: '
-};
-
-const browseTagsOptions = {
-	type: 'checkbox',
-	name: 'parameter',
-	message: 'Please select the tags you want to view bookmarks of: ',
-	choices: []
-};
-
-const assignTagsOptions = {
-	type: 'input',
-	name: 'keywords',
-	message: 'Please write down the tags you want to assign to the bookmark. (example:) game html javascript csharp leisure: '
-};
-
-const settingsOptions = {
-	type: 'list',
-	name: 'parameter',
-	message: 'Option',
-	choices: ['Back', 'Re-import bookmarks']
-};
-
-const selectedTagsBookmarksOptions = {
-	type: 'list',
-	name: 'parameter',
-	message: 'Option'
-};
-
-const useTagsOptions = {
-	type: 'list',
-	name: 'parameter',
-	message: 'Parameter',
-	choices: ['Back', 'Browse Tags', 'Assign Tags']
-};
-// ******************************
-
 function queryAnswer(answer) {
 	// **** STATES OF BROWSING BOOKMARKS ****
 	//
@@ -183,55 +112,91 @@ function queryAnswer(answer) {
 	// **************************************
 
 	if (answer.method == 'Group') {
-		inquirer.prompt([groupByOptions])
+		inquirer.prompt([options.groupByOptions])
 			.then(answer => groupQueryBy(answer));
 	} else if (answer.method == 'Sort') {
-		inquirer.prompt([sortByOptions])
+		inquirer.prompt([options.sortByOptions])
 			.then(answer => queryBySorting(answer));
 	} else if (answer.method == 'Keywords') {
-		inquirer.prompt([keywordsOptions])
+		inquirer.prompt([options.keywordsOptions])
 			.then(answer => queryByKeywords(answer));
 	} else if (answer.method == 'Tags') {
-		inquirer.prompt([useTagsOptions])
+		inquirer.prompt([options.useTagsOptions])
 			.then(answer => selectTagsOperation(answer));
 		state = 'Tags Operation';
 	} else if (answer.method == 'Settings') {
-		inquirer.prompt([settingsOptions])
+		inquirer.prompt([options.settingsOptions])
 			.then(answer => openOptionsQuery(answer));
 	}
 }
 
 function selectTagsOperation(answer) {
-	if (answer.parameter == 'Browse Tags') {
-		const allTags = [];
+	const allTags = [];
 
-		for (let i = 0; i < allBookmarks.length; i++) {
-			const bookmark = allBookmarks[i];
+	for (let i = 0; i < allBookmarks.length; i++) {
+		const bookmark = allBookmarks[i];
 
-			for (let j = 0; j < bookmark.tags.length; j++) {
-				const tag = bookmark.tags[j];
+		for (let j = 0; j < bookmark.tags.length; j++) {
+			const tag = bookmark.tags[j];
 
-				if (!allTags.includes(tag)) {
-					allTags.push(tag);
-				}
+			if (!allTags.includes(tag)) {
+				allTags.push(tag);
 			}
 		}
+	}
 
-		browseTagsOptions.choices = allTags;
+	options.browseTagsOptions.choices = allTags;
+	options.removeTagsOptions.choices = allTags;
 
+	if (answer.parameter == 'Browse Tags') {
 		if (allTags.length == 0) {
 			console.log(chalk `{red ✗ You have no tags to browse. Assign tags in order to use this operation.}`);
 			prompt();
 		} else {
-			inquirer.prompt([browseTagsOptions])
+			inquirer.prompt([options.browseTagsOptions])
 				.then(answer => displayBookmarksForTags(answer));
 		}
 	} else if (answer.parameter == 'Assign Tags') {
-		inquirer.prompt([keywordsOptions])
+		inquirer.prompt([options.keywordsOptions])
 			.then(answer => queryByKeywords(answer));
+	} else if (answer.parameter == 'Remove Tags') {
+		if (allTags.length == 0) {
+			console.log(chalk `{red ✗ You have no tags to remove. Assign tags in order to use this operation.}`);
+			prompt();
+		} else {
+			inquirer.prompt([options.removeTagsOptions])
+				.then(answer => removeTags(answer));
+		}
 	} else if (answer.parameter == 'Back') {
 		prompt();
 	}
+}
+
+// TODO: When choosing which tags to delete, make sure you
+// remove the tags from the bookmarks array of tags as well.
+function removeTags(answer) {
+	const tagsSelected = answer.parameter;
+
+	for (let i = 0; i < tagsSelected.length; i++) {
+		const tag = tagsSelected[i];
+
+		for (let j = 0; j < allBookmarks.length; j++) {
+			const bookmark = allBookmarks[j];
+
+			for (let k = 0; k < bookmark.tags.length; k++) {
+				if (bookmark.tags[k] == tag) {
+					bookmark.tags.splice(k, 1);
+				}
+			}
+		}
+	}
+
+	backupTags();
+	getInstalledPath('slbms.js').then((path) => {
+		fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {});
+	});
+
+	prompt();
 }
 
 function displayBookmarksForTags(answer) {
@@ -250,9 +215,9 @@ function displayBookmarksForTags(answer) {
 		}
 	}
 
-	selectedTagsBookmarksOptions.choices = bookmarks;
+	options.selectedTagsBookmarksOptions.choices = bookmarks;
 
-	inquirer.prompt([selectedTagsBookmarksOptions])
+	inquirer.prompt([options.selectedTagsBookmarksOptions])
 		.then(answer => {
 			const bookmarkLink = answer.parameter.split(' => ')[1];
 			openBookmarkLink(bookmarkLink);
@@ -332,7 +297,7 @@ function queryByKeywords(answer) {
 	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
 	spinner.start();
 
-	const fuseQuery = new Fuse(allBookmarks, searchOptions);
+	const fuseQuery = new Fuse(allBookmarks, options.searchOptions);
 	const matches = [];
 	fuseQuery.search(answer.keywords).forEach(item => {
 		item.item.name = chalk `{underline ${item.item.name.substring(0, 100)}} => ${item.item.url}`;
@@ -398,7 +363,7 @@ function backupTags() {
 }
 
 function tagBookmark(bookmarksToTag) {
-	inquirer.prompt([assignTagsOptions])
+	inquirer.prompt([options.assignTagsOptions])
 		.then(answer => {
 			const tags = answer.keywords.split(' ');
 			for (let i = 0; i < bookmarksToTag.length; i++) {
@@ -422,7 +387,7 @@ function tagBookmark(bookmarksToTag) {
 			backupTags();
 
 			prompt();
-		});
+	});
 }
 
 function pickBookmark(bookmarkPicked) {
@@ -444,7 +409,7 @@ function prompt() {
 	state = 'Bookmarks Browsing';
 
 	inquirer
-		.prompt([queryMethodOptions])
+		.prompt([options.queryMethodOptions])
 		.then(answer => queryAnswer(answer));
 }
 
