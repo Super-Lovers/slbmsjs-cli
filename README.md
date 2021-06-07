@@ -12,7 +12,10 @@ $ git clone https://github.com/Super-Lovers/slbmsjs-cli.git
 $ cd slbmsjs-cli
 ```
 ```
-$ npm i [-g]
+$ yarn install
+```
+```
+$ npm install -g
 ```
 ## 🎈 Usage
 
@@ -20,7 +23,7 @@ Before you can start using the application, you have to go to its root directory
 
 <img style="float:left;" src="https://i.imgur.com/9IeASY8.png"/>
 
-After you have done that you can start the application:
+After you have done that you can start the application from anywhere using:
 ```
 $ slbms
 ```
