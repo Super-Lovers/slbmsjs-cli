@@ -3,14 +3,15 @@
 /* eslint-disable no-shadow */
 
 // Libraries
-const bookmarksParser = require('bookmark-parser');
+const bookmarks_parser = require('bookmark-parser');
 const fs = require('fs');
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 const openurl2 = require('openurl2');
-const stripAnsi = require('strip-ansi');
+const strip_ansi = require('strip-ansi');
 const Spinner = require('cli-spinner').Spinner;
 const Fuse = require('fuse.js');
+const link_check = require('link-check');
 const {
 	getInstalledPath
 } = require('get-installed-path');
@@ -20,9 +21,9 @@ const options = require('./options.js');
 
 // ***********************************
 // ***********************************
-let librariesLeftToImport = 0;
+let libraries_left_to_import = 0;
 const folders = [];
-let allBookmarks = [];
+let all_bookmarks = [];
 let state;
 
 console.log('     _ _                   ');
@@ -31,7 +32,7 @@ console.log('/ __| | |_ \\| \'_  ` _\\/ __|');
 console.log('\\__ | | |_) | | | | | \\__ \\');
 console.log('|___|_|_.__/|_| |_| |_|___/');
 console.log(chalk `{green The simple bookmarks viewer}`);
-console.log(chalk `{bgBlue version (1.2.1)}`);
+console.log(chalk `{bgBlue version (1.3)}`);
 console.log();
 
 getInstalledPath('slbms.js').then((path) => {
@@ -48,7 +49,7 @@ getInstalledPath('slbms.js').then((path) => {
 					throw new Error(chalk `{red Please add at least one html json bookmarks backup file in the bookmarks folder of the root folder of the package (${__dirname}). Create a bookmarks folder if it does not exist.}`);
 				}
 
-				librariesLeftToImport = files.length;
+				libraries_left_to_import = files.length;
 				files.forEach(file => {
 					importBookmarks(file);
 				});
@@ -62,8 +63,8 @@ getInstalledPath('slbms.js').then((path) => {
 							for (let i = 0; i < bookmarksWithTags.length; i++) {
 								const bookmarkWithTags = bookmarksWithTags[i];
 
-								for (let j = 0; j < allBookmarks.length; j++) {
-									const bookmark = allBookmarks[j];
+								for (let j = 0; j < all_bookmarks.length; j++) {
+									const bookmark = all_bookmarks[j];
 
 									if (bookmarkWithTags.name == bookmark.name) {
 										bookmark.tags = bookmarkWithTags.tags;
@@ -79,7 +80,7 @@ getInstalledPath('slbms.js').then((path) => {
 			});
 		} else if (result == true) {
 			const bookmarks = fs.readFileSync(path + '/imported-data.json', 'utf8');
-			allBookmarks = JSON.parse(bookmarks);
+			all_bookmarks = JSON.parse(bookmarks);
 
 			const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
 			if (bookmarksWithTagsData.length > 0) {
@@ -88,8 +89,8 @@ getInstalledPath('slbms.js').then((path) => {
 				for (let i = 0; i < bookmarksWithTags.length; i++) {
 					const bookmarkWithTags = bookmarksWithTags[i];
 
-					for (let j = 0; j < allBookmarks.length; j++) {
-						const bookmark = allBookmarks[j];
+					for (let j = 0; j < all_bookmarks.length; j++) {
+						const bookmark = all_bookmarks[j];
 
 						if (bookmarkWithTags.name == bookmark.name) {
 							bookmark.tags = bookmarkWithTags.tags;
@@ -133,8 +134,8 @@ function queryAnswer(answer) {
 function selectTagsOperation(answer) {
 	const allTags = [];
 
-	for (let i = 0; i < allBookmarks.length; i++) {
-		const bookmark = allBookmarks[i];
+	for (let i = 0; i < all_bookmarks.length; i++) {
+		const bookmark = all_bookmarks[i];
 
 		for (let j = 0; j < bookmark.tags.length; j++) {
 			const tag = bookmark.tags[j];
@@ -180,8 +181,8 @@ function removeTags(answer) {
 	for (let i = 0; i < tagsSelected.length; i++) {
 		const tag = tagsSelected[i];
 
-		for (let j = 0; j < allBookmarks.length; j++) {
-			const bookmark = allBookmarks[j];
+		for (let j = 0; j < all_bookmarks.length; j++) {
+			const bookmark = all_bookmarks[j];
 
 			for (let k = 0; k < bookmark.tags.length; k++) {
 				if (bookmark.tags[k] == tag) {
@@ -193,7 +194,7 @@ function removeTags(answer) {
 
 	backupTags();
 	getInstalledPath('slbms.js').then((path) => {
-		fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {});
+		fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {});
 	});
 
 	prompt();
@@ -203,8 +204,8 @@ function displayBookmarksForTags(answer) {
 	const bookmarks = [];
 	const tagsSelected = answer.parameter;
 
-	for (let i = 0; i < allBookmarks.length; i++) {
-		const bookmark = allBookmarks[i];
+	for (let i = 0; i < all_bookmarks.length; i++) {
+		const bookmark = all_bookmarks[i];
 
 		for (let j = 0; j < bookmark.tags.length; j++) {
 			const tag = bookmark.tags[j];
@@ -228,7 +229,7 @@ function openOptionsQuery(answer) {
 	getInstalledPath('slbms.js').then((path) => {
 		if (answer.parameter == 'Re-import bookmarks') {
 			fs.readdir(path + '/bookmarks', (err, files) => {
-				librariesLeftToImport = files.length;
+				libraries_left_to_import = files.length;
 				files.forEach(file => {
 					importBookmarks(file);
 				});
@@ -236,10 +237,49 @@ function openOptionsQuery(answer) {
 		// } else if (answer.parameter == 'Back-up tags') {
 		// 	backupTags();
 		// 	prompt();
+		} else if (answer.parameter == 'Validate Bookmarks') {
+			validateBookmarks();
+			prompt();
 		} else if (answer.parameter == 'Back') {
 			prompt();
 		}
 	});
+}
+
+async function validateBookmarks() {
+	const valid_bookmarks = [];
+	const invalid_bookmarks = [];
+
+	let spinner = new Spinner(chalk `%s {yellow Starting links validation}`);
+	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
+	spinner.start();
+
+	let current_link_index = 1;
+	for await (const bookmark of all_bookmarks.slice(0, 10)) {
+		spinner.stop();
+		spinner = new Spinner(chalk `%s {yellow Validating link ${current_link_index} of ${all_bookmarks.length}}`);
+		spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
+		spinner.start();
+
+		await link_check(bookmark.url, (err, result) => {
+			if (err) { console.log(err); }
+
+			const status = result.status;
+			if (status != 'alive') {
+				invalid_bookmarks.push(result.link);
+			}
+		});
+
+		current_link_index++;
+	}
+	spinner.stop();
+
+	console.log(valid_bookmarks.length);
+	for (let i = 0; i < valid_bookmarks.length; i++) {
+		const bookmark = valid_bookmarks[i];
+
+		console.log(chalk `{red ✗ ${bookmark}}`);
+	}
 }
 
 function queryBySorting(answer) {
@@ -253,7 +293,7 @@ function queryBySorting(answer) {
 }
 
 function sortBookmarksIn(order) {
-	const sortedBookmarks = JSON.parse(JSON.stringify(allBookmarks));
+	const sortedBookmarks = JSON.parse(JSON.stringify(all_bookmarks));
 
 	sortedBookmarks.forEach(bookmark => {
 		let date;
@@ -297,7 +337,7 @@ function queryByKeywords(answer) {
 	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
 	spinner.start();
 
-	const fuseQuery = new Fuse(allBookmarks, options.searchOptions);
+	const fuseQuery = new Fuse(all_bookmarks, options.searchOptions);
 	const matches = [];
 	fuseQuery.search(answer.keywords).forEach(item => {
 		item.item.name = chalk `{underline ${item.item.name.substring(0, 100)}} => ${item.item.url}`;
@@ -325,8 +365,8 @@ function queryByKeywords(answer) {
 			const bookmarksToTag = [];
 
 			if (state == 'Tags Operation') {
-				for (let i = 0; i < allBookmarks.length; i++) {
-					const bookmark = allBookmarks[i];
+				for (let i = 0; i < all_bookmarks.length; i++) {
+					const bookmark = all_bookmarks[i];
 
 					for (let j = 0; j < bookmarksPicked.result.length; j++) {
 						const bookmarkPicked = bookmarksPicked.result[j];
@@ -347,14 +387,14 @@ function queryByKeywords(answer) {
 function backupTags() {
 	const bookmarksToBackup = [];
 
-	for (let i = 0; i < allBookmarks.length; i++) {
-		const bookmark = allBookmarks[i];
+	for (let i = 0; i < all_bookmarks.length; i++) {
+		const bookmark = all_bookmarks[i];
 
 		if (bookmark.tags.length > 0) {
 			bookmarksToBackup.push(bookmark);
 
 			getInstalledPath('slbms.js').then((path) => {
-				fs.writeFile(path + '/tags-backup.json', stripAnsi(JSON.stringify(bookmarksToBackup)), () => {});
+				fs.writeFile(path + '/tags-backup.json', strip_ansi(JSON.stringify(bookmarksToBackup)), () => {});
 			});
 		}
 	}
@@ -369,25 +409,25 @@ function tagBookmark(bookmarksToTag) {
 			for (let i = 0; i < bookmarksToTag.length; i++) {
 				const bookmarkToTag = bookmarksToTag[i];
 
-				for (let j = 0; j < allBookmarks.length; j++) {
-					const bookmark = allBookmarks[j];
+				for (let j = 0; j < all_bookmarks.length; j++) {
+					const bookmark = all_bookmarks[j];
 
 					if (bookmark.name == bookmarkToTag.name) {
-						bookmark.name = stripAnsi(bookmark.name.split(' => ')[0]);
+						bookmark.name = strip_ansi(bookmark.name.split(' => ')[0]);
 						bookmark.tags = tags;
 					}
 				}
 			}
 
 			getInstalledPath('slbms.js').then((path) => {
-				fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {});
+				fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {});
 			});
 
 			console.log(chalk `{green ✓ Tags assigned.}`);
 			backupTags();
 
 			prompt();
-	});
+		});
 }
 
 function pickBookmark(bookmarkPicked) {
@@ -417,14 +457,14 @@ function groupByAddress() {
 	const groups = [];
 	const allDomains = [];
 
-	for (let i = 0; i < allBookmarks.length; i++) {
+	for (let i = 0; i < all_bookmarks.length; i++) {
 		const regexForDomains = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
-		const result = regexForDomains.exec(allBookmarks[i].url);
+		const result = regexForDomains.exec(all_bookmarks[i].url);
 		if (result !== null && result !== undefined) {
 			const domainString = result[2];
 
 			const domainObj = {
-				title: allBookmarks[i].name,
+				title: all_bookmarks[i].name,
 				domain: domainString,
 				count: 1
 			};
@@ -469,12 +509,12 @@ function displayDomainGroup(domain) {
 	const result = regexForBookmarks.exec(domain.result);
 	const domainString = result[0];
 
-	for (let i = 0; i < allBookmarks.length; i++) {
+	for (let i = 0; i < all_bookmarks.length; i++) {
 		const regexForDomainBookmark = new RegExp(domainString);
-		const bookmark = regexForDomainBookmark.exec(allBookmarks[i].url);
+		const bookmark = regexForDomainBookmark.exec(all_bookmarks[i].url);
 
 		if (bookmark !== null && bookmark !== undefined) {
-			bookmarksFromDomain.push(allBookmarks[i].name + ' => ' + allBookmarks[i].url);
+			bookmarksFromDomain.push(all_bookmarks[i].name + ' => ' + all_bookmarks[i].url);
 		}
 	}
 
@@ -510,13 +550,13 @@ function openBookmarkLink(bookmarkLink) {
 }
 
 function importBookmarks(htmlFile) {
-	allBookmarks = [];
+	all_bookmarks = [];
 	const spinner = new Spinner(chalk `Importing {blue ${htmlFile}} bookmarks file...`);
 	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
 	spinner.start();
 
 	getInstalledPath('slbms.js').then((path) => {
-		bookmarksParser
+		bookmarks_parser
 			.readFromHTMLFile(path + `/bookmarks/${htmlFile}`)
 			.then(obj => {
 				obj.Bookmarks.children.forEach(bookmarksFolder => {
@@ -532,8 +572,8 @@ function importBookmarks(htmlFile) {
 						for (let i = 0; i < bookmarksWithTags.length; i++) {
 							const bookmarkWithTags = bookmarksWithTags[i];
 
-							for (let j = 0; j < allBookmarks.length; j++) {
-								const bookmark = allBookmarks[j];
+							for (let j = 0; j < all_bookmarks.length; j++) {
+								const bookmark = all_bookmarks[j];
 
 								if (bookmarkWithTags.name == bookmark.name) {
 									bookmark.tags = bookmarkWithTags.tags;
@@ -545,7 +585,7 @@ function importBookmarks(htmlFile) {
 
 				spinner.stop();
 				console.log(chalk `Completed Importing {blue ${htmlFile}} bookmarks file`);
-				librariesLeftToImport--;
+				libraries_left_to_import--;
 
 				const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
 				if (bookmarksWithTagsData.length > 0) {
@@ -554,8 +594,8 @@ function importBookmarks(htmlFile) {
 					for (let i = 0; i < bookmarksWithTags.length; i++) {
 						const bookmarkWithTags = bookmarksWithTags[i];
 
-						for (let j = 0; j < allBookmarks.length; j++) {
-							const bookmark = allBookmarks[j];
+						for (let j = 0; j < all_bookmarks.length; j++) {
+							const bookmark = all_bookmarks[j];
 
 							if (bookmarkWithTags.name == bookmark.name) {
 								bookmark.tags = bookmarkWithTags.tags;
@@ -564,8 +604,8 @@ function importBookmarks(htmlFile) {
 					}
 				}
 
-				if (librariesLeftToImport == 0) {
-					fs.writeFile(path + '/imported-data.json', JSON.stringify(allBookmarks), () => {
+				if (libraries_left_to_import == 0) {
+					fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {
 						prompt();
 					});
 				}
@@ -599,7 +639,7 @@ function getBookmarks(folder) {
 						tags: []
 					};
 
-					allBookmarks.push(newBookmark);
+					all_bookmarks.push(newBookmark);
 					bookmarksContainer.bookmarks.push(newBookmark);
 				}
 			});
