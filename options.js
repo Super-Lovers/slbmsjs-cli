@@ -64,7 +64,7 @@ const settingsOptions = {
 	type: 'list',
 	name: 'parameter',
 	message: 'Option',
-	choices: ['Back', 'Validate Bookmarks', 'Re-import bookmarks']
+	choices: ['Back', 'Re-import bookmarks']
 };
 
 const selectedTagsBookmarksOptions = {

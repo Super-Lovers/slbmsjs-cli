@@ -237,9 +237,6 @@ function openOptionsQuery(answer) {
 		// } else if (answer.parameter == 'Back-up tags') {
 		// 	backupTags();
 		// 	prompt();
-		} else if (answer.parameter == 'Validate Bookmarks') {
-			validateBookmarks();
-			prompt();
 		} else if (answer.parameter == 'Back') {
 			prompt();
 		}
