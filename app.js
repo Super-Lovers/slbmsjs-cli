@@ -11,7 +11,6 @@ const openurl2 = require('openurl2');
 const strip_ansi = require('strip-ansi');
 const Spinner = require('cli-spinner').Spinner;
 const Fuse = require('fuse.js');
-const link_check = require('link-check');
 const {
 	getInstalledPath
 } = require('get-installed-path');
@@ -241,42 +240,6 @@ function openOptionsQuery(answer) {
 			prompt();
 		}
 	});
-}
-
-async function validateBookmarks() {
-	const valid_bookmarks = [];
-	const invalid_bookmarks = [];
-
-	let spinner = new Spinner(chalk `%s {yellow Starting links validation}`);
-	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
-	spinner.start();
-
-	let current_link_index = 1;
-	for await (const bookmark of all_bookmarks.slice(0, 10)) {
-		spinner.stop();
-		spinner = new Spinner(chalk `%s {yellow Validating link ${current_link_index} of ${all_bookmarks.length}}`);
-		spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
-		spinner.start();
-
-		await link_check(bookmark.url, (err, result) => {
-			if (err) { console.log(err); }
-
-			const status = result.status;
-			if (status != 'alive') {
-				invalid_bookmarks.push(result.link);
-			}
-		});
-
-		current_link_index++;
-	}
-	spinner.stop();
-
-	console.log(valid_bookmarks.length);
-	for (let i = 0; i < valid_bookmarks.length; i++) {
-		const bookmark = valid_bookmarks[i];
-
-		console.log(chalk `{red ✗ ${bookmark}}`);
-	}
 }
 
 function queryBySorting(answer) {
