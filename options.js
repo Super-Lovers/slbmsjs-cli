@@ -1,4 +1,3 @@
-
 const searchOptions = {
 	shouldSort: true,
 	includeMatches: true,
@@ -57,14 +56,14 @@ const removeTagsOptions = {
 const assignTagsOptions = {
 	type: 'input',
 	name: 'keywords',
-	message: 'Please write down the tags you want to assign to the bookmark. (example:) game html javascript csharp leisure: '
+	message: 'Please write down the tags you want to assign to the bookmark (a, b, c): '
 };
 
 const settingsOptions = {
 	type: 'list',
 	name: 'parameter',
 	message: 'Option',
-	choices: ['Back', 'Re-import bookmarks']
+	choices: ['Back', 'Re-import bookmarks', 'Remove Duplicates']
 };
 
 const selectedTagsBookmarksOptions = {

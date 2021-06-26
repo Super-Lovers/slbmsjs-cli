@@ -17,6 +17,7 @@ const {
 
 // Local imports
 const options = require('./options.js');
+const { group } = require('console');
 
 // ***********************************
 // ***********************************
@@ -30,15 +31,15 @@ console.log(' ___| | |__  _ __ ___  ___ ');
 console.log('/ __| | |_ \\| \'_  ` _\\/ __|');
 console.log('\\__ | | |_) | | | | | \\__ \\');
 console.log('|___|_|_.__/|_| |_| |_|___/');
-console.log(chalk `{green The simple bookmarks viewer}`);
-console.log(chalk `{bgBlue version (1.3)}`);
+console.log(chalk `{bgGreen The simple bookmarks viewer}`);
+console.log(chalk `{bgBlue version (1.4)}`);
 console.log();
 
 getInstalledPath('slbms.js').then((path) => {
-	fs.exists(path + '/imported-data.json', result => {
+	fs.exists(path + '/local_bookmarks.json', result => {
 		if (result == false) {
-			fs.exists(path + '/bookmarks', doesFolderExist => {
-				if (doesFolderExist == false) {
+			fs.exists(path + '/bookmarks', does_folder_exist => {
+				if (does_folder_exist == false) {
 					throw new Error(chalk `{red Please create a "bookmarks" folder in the root of the package folder (${__dirname}) and add at least one html json bookmarks backup file in it.}`);
 				}
 			});
@@ -53,46 +54,46 @@ getInstalledPath('slbms.js').then((path) => {
 					importBookmarks(file);
 				});
 
-				fs.exists(path + '/tags-backup.json', result => {
+				fs.exists(path + '/tags.json', result => {
 					if (result == true) {
-						const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
-						if (bookmarksWithTagsData.length > 0) {
-							const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+						const bookmarks_with_tags_data = fs.readFileSync(path + '/tags.json', 'utf8');
+						if (bookmarks_with_tags_data.length > 0) {
+							const bookmarks_with_tags = JSON.parse(bookmarks_with_tags_data);
 
-							for (let i = 0; i < bookmarksWithTags.length; i++) {
-								const bookmarkWithTags = bookmarksWithTags[i];
+							for (let i = 0; i < bookmarks_with_tags.length; i++) {
+								const bookmark_with_tags = bookmarks_with_tags[i];
 
 								for (let j = 0; j < all_bookmarks.length; j++) {
 									const bookmark = all_bookmarks[j];
 
-									if (bookmarkWithTags.name == bookmark.name) {
-										bookmark.tags = bookmarkWithTags.tags;
+									if (bookmark_with_tags.name == bookmark.name) {
+										bookmark.tags = bookmark_with_tags.tags;
 									}
 								}
 							}
 						}
 					} else {
 						// eslint-disable-next-line max-nested-callbacks
-						fs.writeFileSync(path + '/tags-backup.json', '', () => {});
+						fs.writeFileSync(path + '/tags.json', '', () => {});
 					}
 				});
 			});
 		} else if (result == true) {
-			const bookmarks = fs.readFileSync(path + '/imported-data.json', 'utf8');
+			const bookmarks = fs.readFileSync(path + '/local_bookmarks.json', 'utf8');
 			all_bookmarks = JSON.parse(bookmarks);
 
-			const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
-			if (bookmarksWithTagsData.length > 0) {
-				const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+			const bookmarks_with_tags_data = fs.readFileSync(path + '/tags.json', 'utf8');
+			if (bookmarks_with_tags_data.length > 0) {
+				const bookmarks_with_tags = JSON.parse(bookmarks_with_tags_data);
 
-				for (let i = 0; i < bookmarksWithTags.length; i++) {
-					const bookmarkWithTags = bookmarksWithTags[i];
+				for (let i = 0; i < bookmarks_with_tags.length; i++) {
+					const bookmark_with_tags = bookmarks_with_tags[i];
 
 					for (let j = 0; j < all_bookmarks.length; j++) {
 						const bookmark = all_bookmarks[j];
 
-						if (bookmarkWithTags.name == bookmark.name) {
-							bookmark.tags = bookmarkWithTags.tags;
+						if (bookmark_with_tags.name == bookmark.name) {
+							bookmark.tags = bookmark_with_tags.tags;
 						}
 					}
 				}
@@ -175,10 +176,10 @@ function selectTagsOperation(answer) {
 // TODO: When choosing which tags to delete, make sure you
 // remove the tags from the bookmarks array of tags as well.
 function removeTags(answer) {
-	const tagsSelected = answer.parameter;
+	const tags_selected = answer.parameter;
 
-	for (let i = 0; i < tagsSelected.length; i++) {
-		const tag = tagsSelected[i];
+	for (let i = 0; i < tags_selected.length; i++) {
+		const tag = tags_selected[i];
 
 		for (let j = 0; j < all_bookmarks.length; j++) {
 			const bookmark = all_bookmarks[j];
@@ -193,7 +194,7 @@ function removeTags(answer) {
 
 	backupTags();
 	getInstalledPath('slbms.js').then((path) => {
-		fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {});
+		fs.writeFile(path + '/local_bookmarks.json', JSON.stringify(all_bookmarks), () => {});
 	});
 
 	prompt();
@@ -201,7 +202,7 @@ function removeTags(answer) {
 
 function displayBookmarksForTags(answer) {
 	const bookmarks = [];
-	const tagsSelected = answer.parameter;
+	const tags_selected = answer.parameter;
 
 	for (let i = 0; i < all_bookmarks.length; i++) {
 		const bookmark = all_bookmarks[i];
@@ -209,8 +210,8 @@ function displayBookmarksForTags(answer) {
 		for (let j = 0; j < bookmark.tags.length; j++) {
 			const tag = bookmark.tags[j];
 
-			if (tagsSelected.includes(tag) && !bookmarks.includes(bookmark.name + ' => ' + bookmark.url)) {
-				bookmarks.push(bookmark.name + ' => ' + bookmark.url);
+			if (tags_selected.includes(tag) && !bookmarks.includes(bookmark.name)) {
+				bookmarks.push(bookmark.name);
 			}
 		}
 	}
@@ -219,8 +220,13 @@ function displayBookmarksForTags(answer) {
 
 	inquirer.prompt([options.selectedTagsBookmarksOptions])
 		.then(answer => {
-			const bookmarkLink = answer.parameter.split(' => ')[1];
-			openBookmarkLink(bookmarkLink);
+			for (let i = 0; i < all_bookmarks.length; i++) {
+				const bookmark = all_bookmarks[i];
+
+				if (bookmark.name == answer.parameter) {
+					openBookmarkLink(bookmark.url);
+				}
+			}
 		});
 }
 
@@ -233,9 +239,9 @@ function openOptionsQuery(answer) {
 					importBookmarks(file);
 				});
 			});
-		// } else if (answer.parameter == 'Back-up tags') {
-		// 	backupTags();
-		// 	prompt();
+		} else if (answer.parameter == 'Remove Duplicates') {
+			removeDuplicates();
+			prompt();
 		} else if (answer.parameter == 'Back') {
 			prompt();
 		}
@@ -253,26 +259,25 @@ function queryBySorting(answer) {
 }
 
 function sortBookmarksIn(order) {
-	const sortedBookmarks = JSON.parse(JSON.stringify(all_bookmarks));
+	const sorted_bookmarks = JSON.parse(JSON.stringify(all_bookmarks));
 
-	sortedBookmarks.forEach(bookmark => {
+	sorted_bookmarks.forEach(bookmark => {
 		let date;
-		if (bookmark.creationDate !== null && bookmark.creationDate !== undefined) {
-			date = bookmark.creationDate;
+		if (bookmark.creation_date !== null && bookmark.creation_date !== undefined) {
+			date = bookmark.creation_date;
 		} else {
 			date = 'No Date';
 		}
 
 		const name = bookmark.name;
-		const url = bookmark.url;
 
-		bookmark.name = chalk `{underline ${date} => ${name} =>{bold  ${url}}}`;
+		bookmark.name = chalk `${date} => ${name}`;
 	});
 
 	if (order == 'Newest') {
-		sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? -1 : 1);
+		sorted_bookmarks.sort((a, b) => new Date(a.creation_date) > new Date(b.creation_date) ? -1 : 1);
 	} else if (order == 'Oldest') {
-		sortedBookmarks.sort((a, b) => new Date(a.creationDate) > new Date(b.creationDate) ? 1 : -1);
+		sorted_bookmarks.sort((a, b) => new Date(a.creation_date) > new Date(b.creation_date) ? 1 : -1);
 	}
 
 	inquirer
@@ -281,14 +286,23 @@ function sortBookmarksIn(order) {
 			name: 'result',
 			message: chalk `{green ✓ Sorted bookmarks in order of ${
 				order == 'Newest' ? 'newest' : 'oldest'}}`,
-			choices: sortedBookmarks
+			choices: sorted_bookmarks
 		}])
-		.then(bookmarkPicked => pickBookmark(bookmarkPicked));
+		.then(answer => {
+			const answer_bookmark = answer.result.split(' => ')[1];
+			for (let i = 0; i < all_bookmarks.length; i++) {
+				const bookmark = all_bookmarks[i];
+
+				if (bookmark.name == answer_bookmark) {
+					openBookmarkLink(bookmark.url);
+				}
+			}
+		});
 }
 
 function queryByKeywords(answer) {
 	if (answer.keywords == '') {
-		console.log(chalk `{red ✗ Please give at least one keyword to make a search}`);
+		console.log(chalk `{red ✗ Please give at least one keyword to make a search.}`);
 		prompt();
 		return;
 	}
@@ -300,7 +314,7 @@ function queryByKeywords(answer) {
 	const fuseQuery = new Fuse(all_bookmarks, options.searchOptions);
 	const matches = [];
 	fuseQuery.search(answer.keywords).forEach(item => {
-		item.item.name = chalk `{underline ${item.item.name.substring(0, 100)}} => ${item.item.url}`;
+		item.item.name = chalk `${item.item.name.substring(0, 100)}`;
 		matches.push(item.item);
 	});
 
@@ -321,40 +335,131 @@ function queryByKeywords(answer) {
 			message: `Results (${matches.length}):`,
 			choices: matches
 		}])
-		.then(bookmarksPicked => {
-			const bookmarksToTag = [];
+		.then(bookmark_picked => {
+			const bookmarks_to_tag = [];
 
 			if (state == 'Tags Operation') {
 				for (let i = 0; i < all_bookmarks.length; i++) {
 					const bookmark = all_bookmarks[i];
 
-					for (let j = 0; j < bookmarksPicked.result.length; j++) {
-						const bookmarkPicked = bookmarksPicked.result[j];
+					for (let j = 0; j < bookmark_picked.result.length; j++) {
+						const bookmark_picked_result = bookmark_picked.result[j];
 
-						if (bookmark.url == bookmarkPicked.split(' => ')[1]) {
-							bookmarksToTag.push(bookmark);
+						if (bookmark.name == bookmark_picked_result) {
+							bookmarks_to_tag.push(bookmark);
 						}
 					}
 				}
 
-				tagBookmark(bookmarksToTag);
+				tagBookmark(bookmarks_to_tag);
 			} else if (state == 'Bookmarks Browsing') {
-				pickBookmark(bookmarksPicked);
+				for (let i = 0; i < all_bookmarks.length; i++) {
+					const bookmark = all_bookmarks[i];
+
+					if (bookmark.name == bookmark_picked.result) {
+						openBookmarkLink(bookmark.url);
+					}
+				}
 			}
 		});
 }
 
+function removeDuplicates() {
+	const bookmark_groups_for_removal = [];
+	const bookmark_names_checked = [];
+
+	for (let i = 0; i < all_bookmarks.length; i++) {
+		const bookmark_to_check = all_bookmarks[i];
+		const matching_bookmarks = {
+			latest: '',
+			bookmarks: []
+		};
+
+		matching_bookmarks.bookmarks.push(bookmark_to_check);
+
+		for (let j = 0; j < all_bookmarks.length; j++) {
+			if (bookmark_to_check.name == all_bookmarks[j].name &&
+				!bookmark_names_checked.includes(all_bookmarks[j].name) &&
+				i != j) {
+
+				matching_bookmarks.bookmarks.push(all_bookmarks[j]);
+			}
+		}
+
+		bookmark_names_checked.push(bookmark_to_check.name);
+		if (matching_bookmarks.bookmarks.length > 1) {
+			bookmark_groups_for_removal.push(matching_bookmarks);
+		}
+	}
+
+	const bookmarks_to_remove = [];
+	for (let i = 0; i < bookmark_groups_for_removal.length; i++) {
+		const group = bookmark_groups_for_removal[i];
+
+		let latest_in_group = group.bookmarks[0];
+		let latest_bookmark_date = new Date(latest_in_group.creation_date);
+		for (let j = 0; j < group.bookmarks.length; j++) {
+			const bookmark = group.bookmarks[j];
+			const group_bookmark_date = new Date(bookmark.creation_date);
+
+			if (group_bookmark_date > latest_bookmark_date) {
+				latest_bookmark_date = group_bookmark_date;
+				latest_in_group = bookmark;
+			}
+		}
+
+		group.latest = latest_in_group;
+	}
+
+	// The older bookmark should be removed because it could have jumped domains
+	// and the new one saved as the latest valid by user.
+	for (let i = 0; i < bookmark_groups_for_removal.length; i++) {
+		const group = bookmark_groups_for_removal[i];
+
+		for (let j = 0; j < group.bookmarks.length; j++) {
+			if (group.latest.creation_date != group.bookmarks[j].creation_date) {
+				bookmarks_to_remove.push(group.bookmarks[j]);
+			}
+		}
+	}
+
+	if (bookmarks_to_remove.length == 0) {
+		console.log(chalk.yellow('No duplicates to remove were found.'));
+		return;
+	}
+
+	for (let i = 0; i < bookmarks_to_remove.length; i++) {
+		const bookmark_to_remove = bookmarks_to_remove[i];
+
+		for (let j = 0; j < all_bookmarks.length; j++) {
+			const bookmark = all_bookmarks[j];
+
+			if (bookmark_to_remove.name == bookmark.name &&
+				bookmark_to_remove.creation_date == bookmark.creation_date) {
+
+				all_bookmarks.splice(j, 1);
+			}
+		}
+
+		console.log(chalk.green(`Duplicate of "${bookmark_to_remove.name}" removed.`));
+	}
+
+	getInstalledPath('slbms.js').then((path) => {
+		fs.writeFile(path + '/local_bookmarks.json', JSON.stringify(all_bookmarks), () => {});
+	});
+}
+
 function backupTags() {
-	const bookmarksToBackup = [];
+	const tagged_bookmarks_to_backup = [];
 
 	for (let i = 0; i < all_bookmarks.length; i++) {
 		const bookmark = all_bookmarks[i];
 
 		if (bookmark.tags.length > 0) {
-			bookmarksToBackup.push(bookmark);
+			tagged_bookmarks_to_backup.push(bookmark);
 
 			getInstalledPath('slbms.js').then((path) => {
-				fs.writeFile(path + '/tags-backup.json', strip_ansi(JSON.stringify(bookmarksToBackup)), () => {});
+				fs.writeFile(path + '/tags.json', strip_ansi(JSON.stringify(tagged_bookmarks_to_backup)), () => {});
 			});
 		}
 	}
@@ -362,17 +467,17 @@ function backupTags() {
 	console.log(chalk `{green ✓ Tags backed-up successfully.}`);
 }
 
-function tagBookmark(bookmarksToTag) {
+function tagBookmark(bookmarks_to_tag) {
 	inquirer.prompt([options.assignTagsOptions])
 		.then(answer => {
 			const tags = answer.keywords.split(' ');
-			for (let i = 0; i < bookmarksToTag.length; i++) {
-				const bookmarkToTag = bookmarksToTag[i];
+			for (let i = 0; i < bookmarks_to_tag.length; i++) {
+				const bookmark_to_tag = bookmarks_to_tag[i];
 
 				for (let j = 0; j < all_bookmarks.length; j++) {
 					const bookmark = all_bookmarks[j];
 
-					if (bookmark.name == bookmarkToTag.name) {
+					if (bookmark.name == bookmark_to_tag.name) {
 						bookmark.name = strip_ansi(bookmark.name.split(' => ')[0]);
 						bookmark.tags = tags;
 					}
@@ -380,7 +485,7 @@ function tagBookmark(bookmarksToTag) {
 			}
 
 			getInstalledPath('slbms.js').then((path) => {
-				fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {});
+				fs.writeFile(path + '/local_bookmarks.json', JSON.stringify(all_bookmarks), () => {});
 			});
 
 			console.log(chalk `{green ✓ Tags assigned.}`);
@@ -388,13 +493,6 @@ function tagBookmark(bookmarksToTag) {
 
 			prompt();
 		});
-}
-
-function pickBookmark(bookmarkPicked) {
-	const regexForUrls = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
-	const urlResult = regexForUrls.exec(bookmarkPicked.result);
-
-	openBookmarkLink(urlResult[0]);
 }
 
 function groupQueryBy(answer) {
@@ -415,30 +513,30 @@ function prompt() {
 
 function groupByAddress() {
 	const groups = [];
-	const allDomains = [];
+	const all_domains = [];
 
 	for (let i = 0; i < all_bookmarks.length; i++) {
-		const regexForDomains = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
-		const result = regexForDomains.exec(all_bookmarks[i].url);
+		const regex_for_domains = new RegExp(/(?<Protocol>\w+):\/\/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
+		const result = regex_for_domains.exec(all_bookmarks[i].url);
 		if (result !== null && result !== undefined) {
-			const domainString = result[2];
+			const domain_string = result[2];
 
 			const domainObj = {
 				title: all_bookmarks[i].name,
-				domain: domainString,
+				domain: domain_string,
 				count: 1
 			};
 
-			let isDomainInGroups = false;
+			let is_domain_in_groups = false;
 			for (let j = 0; j < groups.length; j++) {
 				if (groups[j].domain == domainObj.domain) {
 					groups[j].count++;
-					isDomainInGroups = true;
+					is_domain_in_groups = true;
 					break;
 				}
 			}
 
-			if (isDomainInGroups == false) {
+			if (is_domain_in_groups == false) {
 				groups.push(domainObj);
 			}
 		}
@@ -449,7 +547,7 @@ function groupByAddress() {
 	for (let i = 0; i < groups.length; i++) {
 		const message = `${groups[i].domain} => ${groups[i].count} ${(groups[i].count > 1 ? 'occurrences' : 'occurrence')}`;
 
-		allDomains.push(message);
+		all_domains.push(message);
 	}
 
 	inquirer
@@ -457,86 +555,91 @@ function groupByAddress() {
 			type: 'list',
 			name: 'result',
 			message: `Results (${groups.length}):`,
-			choices: allDomains
+			choices: all_domains
 		}])
 		.then(domain => displayDomainGroup(domain));
 }
 
 function displayDomainGroup(domain) {
-	const bookmarksFromDomain = [];
+	const bookmarks_from_domain = [];
 
-	const regexForBookmarks = new RegExp(/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
-	const result = regexForBookmarks.exec(domain.result);
-	const domainString = result[0];
+	const regex_for_bookmarks = new RegExp(/(?<Domain>[\w@][\w.:@]+)\/?[\w.?=%&=\-@/$,]*/);
+	const result = regex_for_bookmarks.exec(domain.result);
+	const domain_string = result[0];
 
 	for (let i = 0; i < all_bookmarks.length; i++) {
-		const regexForDomainBookmark = new RegExp(domainString);
-		const bookmark = regexForDomainBookmark.exec(all_bookmarks[i].url);
+		const regex_for_domain_bookmark = new RegExp(domain_string);
+		const bookmark = regex_for_domain_bookmark.exec(all_bookmarks[i].url);
 
 		if (bookmark !== null && bookmark !== undefined) {
-			bookmarksFromDomain.push(all_bookmarks[i].name + ' => ' + all_bookmarks[i].url);
+			bookmarks_from_domain.push(all_bookmarks[i].name);
 		}
 	}
 
-	const listOfBookmarks = [];
-	bookmarksFromDomain.forEach(element => {
-		listOfBookmarks.push(element);
+	const list_of_bookmarks = [];
+	bookmarks_from_domain.forEach(element => {
+		list_of_bookmarks.push(element);
 	});
 
 	inquirer
 		.prompt([{
 			type: 'list',
 			name: 'result',
-			message: `Domain group matches (${listOfBookmarks.length}):`,
-			choices: listOfBookmarks
+			message: `Domain group matches (${list_of_bookmarks.length}):`,
+			choices: list_of_bookmarks
 		}])
-		.then(bookmark => {
-			const bookmarkLink = bookmark.result.split(' => ')[1];
-			openBookmarkLink(bookmarkLink);
+		.then(answer => {
+			for (let i = 0; i < all_bookmarks.length; i++) {
+				const bookmark = all_bookmarks[i];
+
+				if (bookmark.name == answer.result) {
+					openBookmarkLink(bookmark.url);
+				}
+			}
 		});
 }
 
-function openBookmarkLink(bookmarkLink) {
-	const spinner = new Spinner(chalk `%s {yellow Opening ${bookmarkLink}}`);
+function openBookmarkLink(bookmark_link) {
+	const spinner = new Spinner(chalk `%s {yellow Opening ${bookmark_link}}`);
 	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
 	spinner.start();
 
-	openurl2.open(bookmarkLink, () => {
-		console.log(chalk `\n{green ✓ Finished opening ${bookmarkLink}}`);
+	openurl2.open(bookmark_link, () => {
+		console.log(chalk `\n{green ✓ Finished opening ${bookmark_link}}`);
 		spinner.stop();
 
 		prompt();
 	});
 }
 
-function importBookmarks(htmlFile) {
+function importBookmarks(html_file) {
 	all_bookmarks = [];
-	const spinner = new Spinner(chalk `Importing {blue ${htmlFile}} bookmarks file...`);
+	const spinner = new Spinner(chalk `Importing {blue ${html_file}} bookmarks file...`);
 	spinner.setSpinnerString('⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏');
 	spinner.start();
 
 	getInstalledPath('slbms.js').then((path) => {
 		bookmarks_parser
-			.readFromHTMLFile(path + `/bookmarks/${htmlFile}`)
+			.readFromHTMLFile(path + `/bookmarks/${html_file}`)
 			.then(obj => {
-				obj.Bookmarks.children.forEach(bookmarksFolder => {
-					getBookmarks(bookmarksFolder);
+				obj.Bookmarks.children.forEach(bookmarks_folder => {
+					getBookmarks(bookmarks_folder);
 				});
 
-				fs.existsSync(path + '/tags-backup.json', result => {
-					if (result == false) { fs.writeFileSync(path + '/tags-backup.json', '', 'utf8'); }
+				fs.existsSync(path + '/tags.json', result => {
+					if (result == false) { fs.writeFileSync(path + '/tags.json', '', 'utf8'); }
 					else {
-						const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
-						const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+						const bookmarks_with_tags_data = fs.readFileSync(path + '/tags.json', 'utf8');
+						const bookmarks_with_tags = JSON.parse(bookmarks_with_tags_data);
 
-						for (let i = 0; i < bookmarksWithTags.length; i++) {
-							const bookmarkWithTags = bookmarksWithTags[i];
+						for (let i = 0; i < bookmarks_with_tags.length; i++) {
+							const bookmark_with_tags = bookmarks_with_tags[i];
 
 							for (let j = 0; j < all_bookmarks.length; j++) {
 								const bookmark = all_bookmarks[j];
 
-								if (bookmarkWithTags.name == bookmark.name) {
-									bookmark.tags = bookmarkWithTags.tags;
+								if (bookmark_with_tags.name == bookmark.name) {
+									bookmark.tags = bookmark_with_tags.tags;
 								}
 							}
 						}
@@ -544,28 +647,28 @@ function importBookmarks(htmlFile) {
 				});
 
 				spinner.stop();
-				console.log(chalk `Completed Importing {blue ${htmlFile}} bookmarks file`);
+				console.log(chalk `Completed Importing {blue ${html_file}} bookmarks file`);
 				libraries_left_to_import--;
 
-				const bookmarksWithTagsData = fs.readFileSync(path + '/tags-backup.json', 'utf8');
-				if (bookmarksWithTagsData.length > 0) {
-					const bookmarksWithTags = JSON.parse(bookmarksWithTagsData);
+				const bookmarks_with_tags_data = fs.readFileSync(path + '/tags.json', 'utf8');
+				if (bookmarks_with_tags_data.length > 0) {
+					const bookmarks_with_tags = JSON.parse(bookmarks_with_tags_data);
 
-					for (let i = 0; i < bookmarksWithTags.length; i++) {
-						const bookmarkWithTags = bookmarksWithTags[i];
+					for (let i = 0; i < bookmarks_with_tags.length; i++) {
+						const bookmark_with_tags = bookmarks_with_tags[i];
 
 						for (let j = 0; j < all_bookmarks.length; j++) {
 							const bookmark = all_bookmarks[j];
 
-							if (bookmarkWithTags.name == bookmark.name) {
-								bookmark.tags = bookmarkWithTags.tags;
+							if (bookmark_with_tags.name == bookmark.name) {
+								bookmark.tags = bookmark_with_tags.tags;
 							}
 						}
 					}
 				}
 
 				if (libraries_left_to_import == 0) {
-					fs.writeFile(path + '/imported-data.json', JSON.stringify(all_bookmarks), () => {
+					fs.writeFile(path + '/local_bookmarks.json', JSON.stringify(all_bookmarks), () => {
 						prompt();
 					});
 				}
@@ -575,7 +678,7 @@ function importBookmarks(htmlFile) {
 
 function getBookmarks(folder) {
 	if (Array.isArray(folder.children) && folder.children.length > 0) {
-		const bookmarksContainer = {
+		const bookmarks_container = {
 			name: folder.name,
 			bookmarks: []
 		};
@@ -593,22 +696,22 @@ function getBookmarks(folder) {
 
 					const newBookmark = {
 						name: bookmark.name,
-						creationDate: date.toLocaleString(),
+						creation_date: date.toLocaleString(),
 						url: bookmark.url,
-						fromFolder: bookmarksContainer.name,
+						from_folder: bookmarks_container.name,
 						tags: []
 					};
 
 					all_bookmarks.push(newBookmark);
-					bookmarksContainer.bookmarks.push(newBookmark);
+					bookmarks_container.bookmarks.push(newBookmark);
 				}
 			});
 
-		if (bookmarksContainer.bookmarks.length > 0) {
-			folders.push(bookmarksContainer);
+		if (bookmarks_container.bookmarks.length > 0) {
+			folders.push(bookmarks_container);
 
 			console.log();
-			console.log(chalk `Imported library {green ${bookmarksContainer.name}} => ${folder.children.length} bookmarks`);
+			console.log(chalk `Imported library {green ${bookmarks_container.name}} => ${folder.children.length} bookmarks`);
 		}
 	}
 }

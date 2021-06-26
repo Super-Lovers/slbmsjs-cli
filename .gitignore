@@ -1,7 +1,7 @@
 node_modules
 bookmarks
-imported-data.json
-tags-backup.json
+local_bookmarks.json
+tags.json
 
 # Swap
 [._]*.s[a-v][a-z]
